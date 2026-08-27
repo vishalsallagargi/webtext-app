@@ -1,0 +1,14 @@
+.DS_Store
+
+# Terraform state and local provider cache — contains AWS account details
+# and changes on every apply; never commit it.
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/tfplan
+terraform/*.tfvars
+
+# Ansible inventory is generated from Terraform output via `task inventory`
+# and Ansible run logs are local artifacts — neither belongs in git.
+ansible/inventory.ini
+ansible/run.log

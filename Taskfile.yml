@@ -1,0 +1,84 @@
+version: '3'
+
+vars:
+  IMAGE_NAME: webtext-app
+  CONTAINER_NAME: webtext-app
+  PORT: 8081
+  ANSIBLE_USER: ubuntu
+  ANSIBLE_SSH_KEY: ~/.ssh/webtext-app
+
+tasks:
+  inventory:
+    desc: Regenerate ansible/inventory.ini from the current Terraform state
+    dir: terraform
+    cmds:
+      - |
+        IP=$(terraform output -raw public_ip)
+        printf '[webtext]\n%s ansible_user={{.ANSIBLE_USER}} ansible_ssh_private_key_file={{.ANSIBLE_SSH_KEY}}\n' "$IP" > ../ansible/inventory.ini
+        echo "Wrote ansible/inventory.ini for $IP"
+
+  provision:
+    desc: Regenerate the inventory from Terraform and run the Ansible playbook
+    deps: [inventory]
+    dir: ansible
+    cmds:
+      - ansible-playbook -i inventory.ini playbook.yml
+
+  build:
+    desc: Build the webtext-app docker image
+    cmds:
+      - docker build -t {{.IMAGE_NAME}} -f Dockerfile .
+
+  lint:
+    desc: Lint the Dockerfile with hadolint
+    cmds:
+      - docker run --rm -i hadolint/hadolint < Dockerfile
+
+  deploy:
+    desc: Run the latest built webtext-app image locally on port 8081
+    cmds:
+      - docker rm -f {{.CONTAINER_NAME}} >/dev/null 2>&1 || true
+      - >
+        docker run -d --name {{.CONTAINER_NAME}}
+        -p {{.PORT}}:80
+        -e WEBTEXT="Development deploy"
+        {{.IMAGE_NAME}}
+      - sleep 1
+
+  test:
+    desc: curl localhost:8081 and verify the response matches the expected text
+    vars:
+      EXPECTED: Development deploy
+    cmds:
+      - |
+        RESPONSE=$(curl -s localhost:{{.PORT}})
+        if [ "$RESPONSE" = "{{.EXPECTED}}" ]; then
+          echo "PASS: got '$RESPONSE'"
+        else
+          echo "FAIL: expected '{{.EXPECTED}}' but got '$RESPONSE'"
+          exit 1
+        fi
+
+  deploywithdoppler:
+    desc: Run webtext-app locally using WEBTEXT from Doppler
+    cmds:
+      - docker rm -f {{.CONTAINER_NAME}} >/dev/null 2>&1 || true
+      - >
+        docker run -d --name {{.CONTAINER_NAME}}
+        -p {{.PORT}}:80
+        -e WEBTEXT="$(doppler secrets get WEBTEXT --plain)"
+        {{.IMAGE_NAME}}
+      - sleep 1
+
+  clean:
+    desc: Stop and remove the webtext-app container
+    cmds:
+      - docker rm -f {{.CONTAINER_NAME}} >/dev/null 2>&1 || true
+
+  cicd:
+    desc: Run build, lint, deploy, and test in sequence
+    cmds:
+      - task: build
+      - task: lint
+      - task: deploy
+      - task: test
