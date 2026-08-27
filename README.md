@@ -32,7 +32,14 @@ task cicd      # build, lint, deploy, test
 ```
 
 `task deploywithdoppler` is the same as `deploy` but pulls `WEBTEXT` from
-Doppler instead of using the default.
+Doppler instead of using the default. It needs a Doppler service token for
+the `webtext-app` / `dev` config, set as `DOPPLER_TOKEN` in the shell before
+running it:
+
+```
+export DOPPLER_TOKEN="dp.st.xxxxxxxx"
+task deploywithdoppler
+```
 
 ## Provisioning AWS
 

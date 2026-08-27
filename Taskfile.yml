@@ -60,13 +60,13 @@ tasks:
         fi
 
   deploywithdoppler:
-    desc: Run webtext-app locally using WEBTEXT from Doppler
+    desc: Run webtext-app locally using WEBTEXT from Doppler (requires DOPPLER_TOKEN env var)
     cmds:
       - docker rm -f {{.CONTAINER_NAME}} >/dev/null 2>&1 || true
       - >
         docker run -d --name {{.CONTAINER_NAME}}
         -p {{.PORT}}:80
-        -e WEBTEXT="$(doppler secrets get WEBTEXT --plain)"
+        -e WEBTEXT="$(doppler secrets get WEBTEXT --plain --token "$DOPPLER_TOKEN")"
         {{.IMAGE_NAME}}
       - sleep 1
 
